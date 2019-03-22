@@ -3,7 +3,7 @@ module param
   implicit none
 
   ! File names
-  character(len=50), save, public                :: atomname, soctype
+  character(len=50), save, public                :: atomname, soctype, bondcoord
 
   ! Calculation parameters
   complex*16     , save, public, allocatable     :: u_mat(:,:,:,:,:), sigma_x(:,:,:,:), sigma_y(:,:,:,:), sigma_z(:,:,:,:)
@@ -38,6 +38,7 @@ module param
        read(1,*) spinorb ! This is true if a DFT + SO calculation is performed
        read(1,*) soctype ! 'f': If read directly from LDA+SO, 's': If read SO potential read separatedly and sum to LDA.
                          ! 'n': no SO potential added, just for testing purposes
+       read(1,*) bondcoord ! 'c' if in hf_ham.in bonds are given in cartesian coords, 'f' if fractional coords.
        read(1,*) nelec ! Total number of electrons
        read(1,*) nscf  ! Total number of SCF cycles
        read(1,*) nener ! Total number of points in between emax and emin
@@ -156,7 +157,9 @@ module param
                    read(2,*,iostat=io_stat) ham(iorb,:,1)
                 end do
 
-                call utility_frac_to_cart(bond(:),bond(:),lattvec)
+                if (bondcoord == 'f') then
+                   call utility_frac_to_cart(bond(:),bond(:),lattvec)
+                end if
 
                 nrpt = nrpt + 1
                 !Expand to spindown subspace
@@ -179,7 +182,11 @@ module param
           do irpt = 1, nrpt
              read(2,*) atom_label(1,irpt), atom_label(2,irpt)
              read(2,*) r_bond(:,irpt)
-             call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+           
+             if (bondcoord == 'f') then
+                call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+             end if
+
              do iorb = 1, norb
                 read(2,*) ham_r(iorb,:,irpt,1)
              end do
@@ -214,7 +221,11 @@ module param
                    read(2,*,iostat=io_stat) iat, iat1, norbso, norbso
                    if (io_stat < 0) cycle
                    read(2,*,iostat=io_stat) bond(:)
-                   call utility_frac_to_cart(bond(:),bond(:),lattvec)
+
+                   if (bondcoord == 'f') then
+                      call utility_frac_to_cart(bond(:),bond(:),lattvec)
+                   end if
+ 
                    do iorb = 1, norbso
                       read(2,*,iostat=io_stat) rtempnn(iorb,:)
                    end do
@@ -255,7 +266,11 @@ module param
           do irpt = 1, nrpt
              read(2,*,iostat=io_stat) atom_label(1,irpt), atom_label(2,irpt)
              read(2,*,iostat=io_stat) r_bond(:,irpt)
-             call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+
+             if (bondcoord == 'f') then
+                call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+             end if
+
              do iorb = 1, norbso
                 read(2,*,iostat=io_stat) rtempnn(iorb,:)
              end do
@@ -347,7 +362,11 @@ module param
                 read(2,*,iostat=io_stat) iat, iat1, norb, norb
                 if (io_stat < 0) cycle
                 read(2,*,iostat=io_stat) bond(:)
-                call utility_frac_to_cart(bond(:),bond(:),lattvec)
+
+                if (bondcoord == 'f') then
+                   call utility_frac_to_cart(bond(:),bond(:),lattvec)
+                end if
+
                 do iorb = 1, norb
                    read(2,*,iostat=io_stat) hamsoc(iorb,:,1,1)
                 end do
@@ -380,8 +399,12 @@ module param
           ham_rsoc = cmplx_0
           do irpt = 1, nrpt
              read(2,*) atom_label(1,irpt), atom_label(2,irpt)
-             read(2,*) r_bond(:,irpt)
-             call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+             read(2,*) r_bond(:,irpt) 
+
+             if (bondcoord == 'f') then
+                call utility_frac_to_cart(r_bond(:,irpt),r_bond(:,irpt),lattvec)
+             end if
+
              do iorb = 1, norb
                 read(2,*) ham_rsoc(iorb,:,irpt,1,1)
              end do
@@ -487,55 +510,55 @@ module param
   allocate(usph(nsite))
   allocate(jsph(nsite))
 
-!  u_mat = cmplx_0
-!  do isite = 1, nsite
-!     do iorb = 1, norb
-!       do iorb1 = 1, norb
-!           u_mat(iorb,iorb,iorb1,iorb1,isite) = 2.9 !usph(isite)
-!        end do
-!     end do
-!  end do
-
- ! do isite = 1, nsite
- !    do iorb = 1, norb
- !       do iorb1 = 1, norb
- !          if (iorb /= iorb1) then
- !             u_mat(iorb,iorb1,iorb1,iorb,isite) = 0.9 !jsph(isite)
- !          end if
- !       end do
- !    end do
- ! end do
-
   u_mat = cmplx_0
-  u_mat(1,1,1,1,1) = 0.707
-  u_mat(1,1,2,2,1) = 0.509
-  u_mat(1,1,3,3,1) = 0.509
-  u_mat(2,2,1,1,1) = 0.509
-  u_mat(2,2,2,2,1) = 0.676
-  u_mat(2,2,3,3,1) = 0.505
-  u_mat(3,3,1,1,1) = 0.509
-  u_mat(3,3,2,2,1) = 0.505
-  u_mat(3,3,3,3,1) = 0.676
+  do isite = 1, nsite
+     do iorb = 1, norb
+       do iorb1 = 1, norb
+           u_mat(iorb,iorb,iorb1,iorb1,isite) = 2.9 !usph(isite)
+        end do
+     end do
+  end do
 
-  u_mat(1,1,1,1,1) = 0.707
-  u_mat(1,2,2,1,1) = 0.086
-  u_mat(1,3,3,1,1) = 0.086
-  u_mat(2,1,1,2,1) = 0.086
-  u_mat(2,2,2,2,1) = 0.676
-  u_mat(2,3,3,2,1) = 0.086
-  u_mat(3,1,1,3,1) = 0.086
-  u_mat(3,2,2,3,1) = 0.086
-  u_mat(3,3,3,3,1) = 0.676
+  do isite = 1, nsite
+     do iorb = 1, norb
+       do iorb1 = 1, norb
+           if (iorb /= iorb1) then
+              u_mat(iorb,iorb1,iorb1,iorb,isite) = 0.9 !jsph(isite)
+           end if
+        end do
+     end do
+  end do
 
-  u_mat(1,1,1,1,1) = 0.707
-  u_mat(1,2,1,2,1) = 0.086
-  u_mat(1,3,1,3,1) = 0.086
-  u_mat(2,1,2,1,1) = 0.086
-  u_mat(2,2,2,2,1) = 0.676
-  u_mat(2,3,2,3,1) = 0.086
-  u_mat(3,1,3,1,1) = 0.086
-  u_mat(3,2,3,2,1) = 0.086
-  u_mat(3,3,3,3,1) = 0.676
+!  u_mat = cmplx_0
+!  u_mat(1,1,1,1,1) = 0.707
+!  u_mat(1,1,2,2,1) = 0.509
+!  u_mat(1,1,3,3,1) = 0.509
+!  u_mat(2,2,1,1,1) = 0.509
+!  u_mat(2,2,2,2,1) = 0.676
+!  u_mat(2,2,3,3,1) = 0.505
+!  u_mat(3,3,1,1,1) = 0.509
+!  u_mat(3,3,2,2,1) = 0.505
+!  u_mat(3,3,3,3,1) = 0.676
+
+!  u_mat(1,1,1,1,1) = 0.707
+!  u_mat(1,2,2,1,1) = 0.086
+!  u_mat(1,3,3,1,1) = 0.086
+!  u_mat(2,1,1,2,1) = 0.086
+!  u_mat(2,2,2,2,1) = 0.676
+!  u_mat(2,3,3,2,1) = 0.086
+!  u_mat(3,1,1,3,1) = 0.086
+!  u_mat(3,2,2,3,1) = 0.086
+!  u_mat(3,3,3,3,1) = 0.676
+
+!  u_mat(1,1,1,1,1) = 0.707
+!  u_mat(1,2,1,2,1) = 0.086
+!  u_mat(1,3,1,3,1) = 0.086
+!  u_mat(2,1,2,1,1) = 0.086
+!  u_mat(2,2,2,2,1) = 0.676
+!  u_mat(2,3,2,3,1) = 0.086
+!  u_mat(3,1,3,1,1) = 0.086
+!  u_mat(3,2,3,2,1) = 0.086
+!  u_mat(3,3,3,3,1) = 0.676
 
 
   end subroutine spherical_param
