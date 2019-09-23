@@ -1,0 +1,14 @@
+#INPUT FOR HF SOLVER
+.False.
+f
+c
+24
+1000
+50000
+300
+1d-8
+0.4
+.False.
+0.05
+.False.
+.True.

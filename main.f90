@@ -99,7 +99,7 @@ program main
      write(33,'(a)') 'Reading Coulomb parameters...'
      write(33,'(a)') ' '
      call get_pauli() ! Get coulomb matrix
-!     call get_coulomb_matrix()
+     if (.not.lsph) call get_coulomb_matrix()
      if (lsph) then
         write(33,'(a)') 'Spherical parameterization of coulomb matrices in eV'
         write(33,'(a)') ' '
